@@ -1,19 +1,27 @@
 cmake_minimum_required(VERSION 2.8)
-project(Go)
 
-set(CMAKE_SYSTEM_NAME Generic)
-set(CMAKE_SYSTEM_PROCESSOR avr)
+if (CMAKE_TOOLCHAIN_FILE AND EXISTS ${CMAKE_TOOLCHAIN_FILE})
+  message("==> Loading \${CMAKE_TOOLCHAIN_FILE} == ${CMAKE_TOOLCHAIN_FILE}")
 
-if ("${CROSS_COMPILE}" STREQUAL "")
-  set (CROSS_COMPILE "avr-")
+else()
+
+  set(CMAKE_SYSTEM_NAME      Generic)
+  set(CMAKE_SYSTEM_PROCESSOR avr)
+
+  if ("${CROSS_COMPILE}" STREQUAL "")
+    set (CROSS_COMPILE "avr-")
+  endif()
+
+  set(CMAKE_C_COMPILER          "${CROSS_COMPILE}gcc")
+  set(CMAKE_CXX_COMPILER        "${CROSS_COMPILE}g++")
+  find_program(CMAKE_SIZE NAMES "${CROSS_COMPILE}size"    HINTS ${CROSS_COMPILE_LOCATION})
+  find_program(CMAKE_CXX_FILT   "${CROSS_COMPILE}c++filt" HINTS ${CROSS_COMPILE_LOCATION})
 endif()
 
-set (CMAKE_C_COMPILER   "${CROSS_COMPILE}gcc")
-set (CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
-set (CMAKE_ASM_COMPILER "${CROSS_COMPILE}as")
-#set (CMAKE_MAKE_PROGRAM "make") # "mingw32-make" "mingw64-make"
 
 
+
+project(Go)
 
 ###########
 # Debug or Release
@@ -106,25 +114,25 @@ set(target_with_suffix "${target}${CMAKE_EXECUTABLE_SUFFIX}")
 
 add_custom_command (TARGET ${target}  POST_BUILD
   COMMENT "Extract  : executable hex file : from ${target_with_suffix}"
-  COMMAND ${CROSS_COMPILE}objcopy -O ihex                $<TARGET_FILE:${target}>    $<TARGET_FILE_DIR:${target}>/${target}.hex
+  COMMAND ${CMAKE_OBJCOPY} -O ihex                $<TARGET_FILE:${target}>    $<TARGET_FILE_DIR:${target}>/${target}.hex
   )
 
 add_custom_command (TARGET ${target}  POST_BUILD
   COMMENT "Extract  : assembly list file  : from ${target_with_suffix}"
-  COMMAND ${CROSS_COMPILE}objdump -h -S                  $<TARGET_FILE:${target}>  > $<TARGET_FILE_DIR:${target}>/${target}.lss
+  COMMAND ${CMAKE_OBJDUMP} -h -S                  $<TARGET_FILE:${target}>  > $<TARGET_FILE_DIR:${target}>/${target}.lss
   )
 
 add_custom_command (TARGET ${target}  POST_BUILD
   COMMENT "Extract  : size information    : from ${target_with_suffix}"
-  COMMAND ${CROSS_COMPILE}size -A -t                     $<TARGET_FILE:${target}>  > $<TARGET_FILE_DIR:${target}>/${target}_size.txt
+  COMMAND ${CMAKE_SIZE} -A -t                     $<TARGET_FILE:${target}>  > $<TARGET_FILE_DIR:${target}>/${target}_size.txt
   )
 
 add_custom_command (TARGET ${target}  POST_BUILD
   COMMENT "Extract  : name information    : from ${target_with_suffix}"
-  COMMAND ${CROSS_COMPILE}nm --numeric-sort --print-size $<TARGET_FILE:${target}>  > $<TARGET_FILE_DIR:${target}>/${target}_nm.txt
+  COMMAND ${CMAKE_NM} --numeric-sort --print-size $<TARGET_FILE:${target}>  > $<TARGET_FILE_DIR:${target}>/${target}_nm.txt
   )
 
 add_custom_command (TARGET ${target}  POST_BUILD
   COMMENT "Extract  : demangled names     : from ${target_with_suffix}"
-  COMMAND ${CROSS_COMPILE}nm --numeric-sort --print-size $<TARGET_FILE:${target}>  | ${CROSS_COMPILE}c++filt  > $<TARGET_FILE_DIR:${target}>/${target}_cppfilt.txt
+  COMMAND ${CMAKE_NM} --numeric-sort --print-size $<TARGET_FILE:${target}>  | ${CMAKE_CXX_FILT}  > $<TARGET_FILE_DIR:${target}>/${target}_cppfilt.txt
 )
