@@ -12,16 +12,25 @@ else()
     set (CROSS_COMPILE "avr-")
   endif()
 
-  set(CMAKE_C_COMPILER          "${CROSS_COMPILE}gcc")
-  set(CMAKE_CXX_COMPILER        "${CROSS_COMPILE}g++")
-  find_program(CMAKE_SIZE NAMES "${CROSS_COMPILE}size"    HINTS ${CROSS_COMPILE_LOCATION})
-  find_program(CMAKE_CXX_FILT   "${CROSS_COMPILE}c++filt" HINTS ${CROSS_COMPILE_LOCATION})
+  set(CMAKE_C_COMPILER   "${CROSS_COMPILE}gcc")
+  set(CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
+
+  project(allow_setting_of_cmake_vars)
+
+  if (NOT CMAKE_SIZE)
+    find_program(CMAKE_SIZE     NAMES "${CROSS_COMPILE}size"    HINTS ${CROSS_COMPILE_LOCATION})
+  endif()
+  if (NOT CMAKE_CXX_FILT)
+    find_program(CMAKE_CXX_FILT NAMES "${CROSS_COMPILE}c++filt" HINTS ${CROSS_COMPILE_LOCATION})
+  endif()
+
 endif()
 
 
+#######
 
+project(led_project)
 
-project(Go)
 
 ###########
 # Debug or Release
@@ -82,8 +91,8 @@ macro(replace_flag list flag repl_flag)
 endmacro()
 
 # When cmake'ing with -DCMAKE_BUILD_TYPE=Release then
-# by default "${CMAKE_CXX_FLAGS_RELEASE}" is "-O3 -DNDEBUG"
-replace_flag(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2") ## change to -O2
+# by default "${CMAKE_CXX_FLAGS_RELEASE}"   ...            is "-O3 -DNDEBUG"
+replace_flag(   CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2") ## change -O3 to -O2
 
 
 ##############
@@ -101,11 +110,14 @@ set_source_files_properties(crt0.s PROPERTIES COMPILE_FLAGS "-x assembler")
 include_directories(.)
 
 
+set(CMAKE_SHARED_LINKER_FLAGS "-nostartfiles -nostdlib -Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/avr.ld,-Map,${CMAKE_BINARY_DIR}/${target}.map")
+set(CMAKE_MODULE_LINKER_FLAGS "-nostartfiles -nostdlib -Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/avr.ld,-Map,${CMAKE_BINARY_DIR}/${target}.map")
+set(CMAKE_EXE_LINKER_FLAGS    "-nostartfiles -nostdlib -Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/avr.ld,-Map,${CMAKE_BINARY_DIR}/${target}.map")
 
 
 add_executable(${target} ${src})
-set_target_properties (${target}
-  PROPERTIES LINK_FLAGS "-nostartfiles -nostdlib -Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/avr.ld,-Map,${CMAKE_BINARY_DIR}/${target}.map")
+#set_target_properties (${target}
+#  PROPERTIES LINK_FLAGS "-nostartfiles -nostdlib -Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/avr.ld,-Map,${CMAKE_BINARY_DIR}/${target}.map")
 
 
 
