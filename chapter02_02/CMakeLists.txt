@@ -12,24 +12,56 @@ else()
     set (CROSS_COMPILE "avr-")
   endif()
 
-  set(CMAKE_C_COMPILER   "${CROSS_COMPILE}gcc")
-  set(CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
+  set (CMAKE_C_COMPILER   "${CROSS_COMPILE}gcc")
+  set (CMAKE_CXX_COMPILER "${CROSS_COMPILE}g++")
+  set (CMAKE_ASM_COMPILER "${CROSS_COMPILE}as")
+  #set (CMAKE_MAKE_PROGRAM "make") # "mingw32-make" "mingw64-make"
 
-  project(allow_setting_of_cmake_vars)
-
-  if (NOT CMAKE_SIZE)
-    find_program(CMAKE_SIZE     NAMES "${CROSS_COMPILE}size"    HINTS ${CROSS_COMPILE_LOCATION})
-  endif()
-  if (NOT CMAKE_CXX_FILT)
-    find_program(CMAKE_CXX_FILT NAMES "${CROSS_COMPILE}c++filt" HINTS ${CROSS_COMPILE_LOCATION})
-  endif()
-
+  
 endif()
 
 
 #######
 
 project(led_project)
+
+
+
+## find binutils (CMAKE_CXX_FILT, CMAKE_SIZE)
+
+function(common_prefix str1 str2 prefix)
+  set(len 1)
+  while (ON)
+    string(SUBSTRING ${str1} 0 ${len} substr1)
+    string(SUBSTRING ${str2} 0 ${len} substr2)
+    if (NOT ${substr1} STREQUAL ${substr2})
+      break()
+    endif()
+    MATH(EXPR len "${len}+1")
+  endwhile()
+
+  MATH(EXPR len "${len}-1")
+  string(SUBSTRING ${str1} 0 ${len} substr)
+  set(${prefix} ${substr} PARENT_SCOPE)
+endfunction()
+
+## CMake only defines a few binutils such as CMAKE_OBJCOPY and CMAKE_NM (see https://github.com/Kitware/CMake/blob/master/Modules/CMakeFindBinUtils.cmake )
+## We use the common prefix of those two, which will help us find other binutils such as CMAKE_CXX_FILT and CMAKE_SIZE (see further below)
+common_prefix(
+  ${CMAKE_OBJCOPY} # e.g. /usr/bin/avr-objcopy
+  ${CMAKE_NM}      # e.g. /usr/bin/avr-nm
+                   #      --------------------
+  prefix)          #      /usr/bin/avr-          ## ${prefix} will get this value
+
+get_filename_component(toolchain_prefix   ${prefix} NAME)      # avr-          ## ${toolchain_prefix}   will get this value
+get_filename_component(toolchain_location ${prefix} DIRECTORY) # /usr/bin      ## ${toolchain_location} will get this value
+
+find_program(CMAKE_CXX_FILT  NAMES ${toolchain_prefix}c++filt  HINTS ${toolchain_location})
+find_program(CMAKE_SIZE      NAMES ${toolchain_prefix}size     HINTS ${toolchain_location})
+
+
+
+
 
 
 ###########
@@ -102,9 +134,19 @@ set(target led)
 set(CMAKE_EXECUTABLE_SUFFIX ".elf")
 set(src crt0.s led.cpp)
 
-# https://github.com/projectNe10/Ne10/blob/a08b29d88e3c94d32b5b8f827e7fcf0bc2b34ac2/modules/CMakeLists.txt#L41
-set_property(SOURCE         crt0.s PROPERTY LANGUAGE CXX)
-set_source_files_properties(crt0.s PROPERTIES COMPILE_FLAGS "-x assembler")
+
+if (ON)
+  # https://github.com/projectNe10/Ne10/blob/a08b29d88e3c94d32b5b8f827e7fcf0bc2b34ac2/modules/CMakeLists.txt#L41
+  set_property(SOURCE         crt0.s PROPERTY LANGUAGE CXX)
+  set_source_files_properties(crt0.s PROPERTIES COMPILE_FLAGS "-x assembler")
+else()
+  #alternative
+  enable_language(ASM)
+  set(CMAKE_ASM_FLAGS         "-mmcu=atmega328p")
+  set(CMAKE_ASM_FLAGS_RELEASE "")
+endif()
+
+
 
 
 include_directories(.)
