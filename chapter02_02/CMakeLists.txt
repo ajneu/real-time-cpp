@@ -25,43 +25,7 @@ endif()
 
 project(led_project)
 
-
-
-## find binutils (CMAKE_CXX_FILT, CMAKE_SIZE)
-
-function(common_prefix str1 str2 prefix)
-  set(len 1)
-  while (ON)
-    string(SUBSTRING ${str1} 0 ${len} substr1)
-    string(SUBSTRING ${str2} 0 ${len} substr2)
-    if (NOT ${substr1} STREQUAL ${substr2})
-      break()
-    endif()
-    MATH(EXPR len "${len}+1")
-  endwhile()
-
-  MATH(EXPR len "${len}-1")
-  string(SUBSTRING ${str1} 0 ${len} substr)
-  set(${prefix} ${substr} PARENT_SCOPE)
-endfunction()
-
-## CMake only defines a few binutils such as CMAKE_OBJCOPY and CMAKE_NM (see https://github.com/Kitware/CMake/blob/master/Modules/CMakeFindBinUtils.cmake )
-## We use the common prefix of those two, which will help us find other binutils such as CMAKE_CXX_FILT and CMAKE_SIZE (see further below)
-common_prefix(
-  ${CMAKE_OBJCOPY} # e.g. /usr/bin/avr-objcopy
-  ${CMAKE_NM}      # e.g. /usr/bin/avr-nm
-                   #      --------------------
-  prefix)          #      /usr/bin/avr-          ## ${prefix} will get this value
-
-get_filename_component(toolchain_prefix   ${prefix} NAME)      # avr-          ## ${toolchain_prefix}   will get this value
-get_filename_component(toolchain_location ${prefix} DIRECTORY) # /usr/bin      ## ${toolchain_location} will get this value
-
-find_program(CMAKE_CXX_FILT  NAMES ${toolchain_prefix}c++filt  HINTS ${toolchain_location})
-find_program(CMAKE_SIZE      NAMES ${toolchain_prefix}size     HINTS ${toolchain_location})
-
-
-
-
+include(FindGNUBinutils.cmake)
 
 
 ###########
@@ -190,3 +154,16 @@ add_custom_command (TARGET ${target}  POST_BUILD
   COMMENT "Extract  : demangled names     : from ${target_with_suffix}"
   COMMAND ${CMAKE_NM} --numeric-sort --print-size $<TARGET_FILE:${target}>  | ${CMAKE_CXX_FILT}  > $<TARGET_FILE_DIR:${target}>/${target}_cppfilt.txt
 )
+
+## make clean
+set(EXTRA_MAKE_CLEAN
+  $<TARGET_FILE_DIR:${target}>/${target}.hex
+  $<TARGET_FILE_DIR:${target}>/${target}.lss
+  $<TARGET_FILE_DIR:${target}>/${target}_size.txt
+  $<TARGET_FILE_DIR:${target}>/${target}_nm.txt
+  $<TARGET_FILE_DIR:${target}>/${target}_cppfilt.txt
+  ${target}.map
+  )
+
+SET_DIRECTORY_PROPERTIES(PROPERTIES
+  ADDITIONAL_MAKE_CLEAN_FILES "${EXTRA_MAKE_CLEAN}")
